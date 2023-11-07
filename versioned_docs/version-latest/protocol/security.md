@@ -86,7 +86,7 @@ User Authentication.
     The server encrypts a random number with the public key, sent to the client, who decrypts it with the private key.
     The client computes an MD5 hash using the decrypted number and the shared session key, sending it back to the server for verification.
 
-RSA encryption.
+RSA Encryption.
 
     In RSA, encryption and decryption use different keys: the encryption key is public, and the decryption key is private. A user creates a public key based on two large prime numbers and an auxiliary value, while keeping the prime numbers secret. Messages can be encrypted with the public key but can only be decrypted by someone who knows the prime numbers.
 
@@ -281,14 +281,16 @@ Simply use the search function on the [Ubuntu homepage](https://ubuntu.com/searc
 
 ## UFW
 
-According to the ordering of UFW rules (DENY rules should come first, followed by ALLOW rules), new 'ALLOW' rules can simply be added to the end of the existing rules.
+According to the ordering of UFW rules (DENY rules should come first, followed by ALLOW rules), new 'ALLOW' rules can simply be added to the end of the existing rules:
 
 ```console
 your existing rules
 ...
-sudo ufw allow from anywhere to any proto tcp port 30333 comment 'The node port '
-sudo ufw allow from anywhere to any proto tcp port 30433 comment 'DSN port'
-sudo ufw allow from anywhere to any proto tcp port 30533 comment 'Farmer port'
+sudo ufw allow 30333 comment 'The node port '
+sudo ufw allow 30433 comment 'DSN port'
+sudo ufw allow 30533 comment 'Farmer port'
 ```
+allowing both TCP and UDP protocols.
+
 
 Now with peace of mind you may go back to installing Node and Farmer.
