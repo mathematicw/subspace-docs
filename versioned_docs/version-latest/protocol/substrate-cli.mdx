@@ -8,6 +8,7 @@ keywords:
     - CLI
     - Binaries
     - Docker
+    - Service
 ---
 
 import Tabs from '@theme/Tabs';
@@ -19,99 +20,77 @@ import DockerFileGenerator from '@site/src/components/DockerFileGenerator/index.
 import { AdvancedSystemdServiceFileGenerator } from '@site/src/components/SystemdServiceFileGenerator/index.jsx';
 
 
-:::caution Advanced Usage
-[Pulsar](https://github.com/subspace/pulsar) (previously Simple CLI or Subspace CLI) is the recommended way to farm on the Subspace Network. Follow the guide below to get started or check out the project [README on GitHub](https://github.com/subspace/pulsar/blob/main/README.md).
-:::
-
 :::note Feedback!
-Your insights on our releases elevate our progress. Fill out this [form](https://c6gxctjlh68.typeform.com/to/Ks4Y16Fo), your voice will be heard and addressed.
+Your opinions on our releases contribute to our progress. Fill out this [form](https://c6gxctjlh68.typeform.com/to/Ks4Y16Fo) and your voice will be valued and counted.
 :::
 
-## I. Pre-requisites
+## Pre-requisites
 
 ---
 
-### A. System Requirements
+### System Requirements
 
-:::danger Farming can be Network Intensive.
+:::note Farming can be Network Intensive.
 
-Make sure you have a stable network connection. During the plotting phase of farming, it can be network intensive.
-
-This may impact your network usage so please check your network connection if you have a hard data limit.
+During the plotting phase, Farmers may operate with a high network load.  
+This can affect network utilization, kindly check if you have hard data limit set.
 :::
 
 |Hardware|Specs|
 |-|-|
 |CPU|4 Core+|
-|RAM|8GB+|
-|SWAP|4GB|
-|Storage|100GB SSD|
+|RAM|8 GB+|
+|SWAP|4 GB|
+|Storage|100 GB SSD|
 
-:::note SWAP Warning
 A swap is only necessary if you have a low amount of RAM. 
-:::
 
 :::note CoW Filesystems Warning
-It is advised not to use the Subspace farmer and node on CoW file systems for any OS (ReFS, BTRFS, ZFS, bcachefs, HAMMER and some more).
+It is recommended not to use Subspace Farmer and Node with CoW (Copy on Writes) enabled. That could be in ReFS, BTRFS, ZFS, bcachefs, HAMMER and some other file systems.
 
-If BTRFS is used with Subspace, the directory/whole file system must be CoW disabled with the following command prior to starting Subspace, because it only applies to newly created files.
-
-**Command to Disable CoW on BTRFS**
+In case of using BTRFS, the directory/whole file system must be CoW disabled with the following command prior to starting Subspace, because it only applies to newly created files.
 
 ```shell-session
 sudo chattr +C path/to/data/dir
 ```
-
-Alternatively, non-CoW file systems like ext4 or XFS can be used instead.
 :::
 
 :::note Redundancy
-Using redundancy (RAID1/5/6, RAIDZ and others) on a filesystem with plot makes no sense, as the farmer uses checksums to verify the integrity of the plot, and is able to recover corrupted blocks if necessary in most cases. See `scrub` command below.
+Using redundancy (RAID1/5/6, RAIDZ and others) on a filesystem with plot makes no sense, as Subspace farm can make better performance decisions by seeing how many physical disks you have and parallelizing things accordingly. Farmer also uses checksums to verify the integrity of the plot and in most cases is able to repair damaged blocks if necessary. See the `scrub` command below.
 :::
 
 :::tip Filesystem chunk size
 Creating a filesystem with a chunk (sunit) size of 32KB can prevent data fragmentation and improve performance, since the farmer operates on ~32KB chunks.
 
-**XFS**
-
+**XFS**  
 ```shell-session
 sudo mkfs.xfs -d su=32k,sw=1 /path/to/dev
 ```
 
 Then use `largeio` and `swalloc` mount options.
 
-**ext4**
-
+**ext4**  
 ```shell-session
 sudo mkfs.ext4 -E stride=8,stripe-width=8 /path/to/dev
 ```
 
-You can change these settings for an existing file system:
-
+You can change these settings for an existing file system:  
 ```shell-session
 sudo tune2fs -E stride=8,stripe-width=8 /path/to/dev
 ```
 
 :::
 
-### B. Crypto Wallet
+### Crypto Wallet
 
-Before running anything you need to have a wallet where you'll receive testnet coins. There are currently two wallets we suggest using, SubWallet being the preferred route.
-- [SubWallet](https://subwallet.app/)
-- [PolkadotJS](https://polkadot.js.org/extension/)
+Before running anything you need to have a wallet where you'll receive testnet coins. If you do not already have a wallet, please use the instructions in [this section](https://docs.subspace.network/docs/category/wallets).
+Additional info may be found in our forum post [How to setup Subwallet & a Polkadot.js Wallet](https://forum.subspace.network/t/subspace-wallet/61)
 
-Install one of the two wallets above into your browser and create a new account there.
-The address of your account will be necessary at the last step.
-
-For help refer to our forum post [How to setup Subwallet & a Polkadot.js Wallet](https://forum.subspace.network/t/subspace-wallet/61)
-- *make sure to follow the Bonus section of the bottom of the post above.*
-
-
-### C. Required ports
+### Required ports
 
 Currently, a few ports need to be exposed for node to work properly.
 
-If you have a server with no firewall, there is nothing to be done, but otherwise make sure to open the following TCP and UDP ports for incoming connections.
+If you have a server with no firewall, there is nothing to be done, otherwise make sure to open the following **TCP** and **UDP** ports for incoming connections.
 
 - `30333`
 - `30433`
@@ -120,22 +99,20 @@ If you have a server with no firewall, there is nothing to be done, but otherwis
 On the desktop side if you have a router in front of your computer, you'll need to forward TCP and UDP ports to the machine on which your node is running (how this is done varies from router to router, but there is always a feature like this, refer to [How to Forward Ports](port-forwarding.md) for a more in-depth tutorial).
 If you're connected directly without any router, then again nothing needs to be done in such case.
 
+---------------------------------------------
 
-
-
-## II. Installation
+## Installation
 
 ---
 
-:::tip Looking for all Releases?
-You can always find these executables in the [Releases](https://github.com/subspace/subspace/releases) section on our GitHub
+:::tip [Releases](https://github.com/subspace/subspace/releases) section on our GitHub
+the best place to get fresh releases of binaries and source code
 :::
-
 
 
 We will be downloading two files for your respective operating system.
 1. `Subspace-Node` - This is the executable that actually makes the connection with the Subspace Network
-2. `Subspace-Farmer` - This is the executable that will actually farm for rewards on your allocated storage plot.
+2. `Subspace-Farmer` - This is the executable that will actually farm for rewards on your allocated storage plots.
 
 - *Those using Docker will not have to download anything, just configure the `docker-compose.yaml`*
 
@@ -144,16 +121,14 @@ We will be downloading two files for your respective operating system.
 
 <TabItem value="docker" label="🐋 Docker" default>
 
-  1. Input your parameters in the provided form and click `Generate`. 
-	 Don't forget to specify your reward address instead of a default one!
+  1. Enter your data in the form provided and click *Generate*.  
+  Please use your reward address instead of the default one!
 	 
   <DockerFileGenerator />
   
-  2. Copy the generated `docker-compose.yaml` file.
+  2. Copy the generator's output into your `docker-compose.yaml`.
 
-  3. Create the `subspace` directory and the `docker-compose.yaml` file in it. Paste the output from the generator into the file.
-  
-  4. Now go to directory with `docker-compose.yaml` and type `docker compose up -d` to start everything
+  3. Use `docker compose up -d` in the directory with your `docker-compose.yaml` to start everything!
 
   You can read logs with `docker compose logs --tail=1000 -f`, for the rest read [Docker Compose CLI reference](https://docs.docker.com/compose/reference/).
 
@@ -404,7 +379,7 @@ We will be downloading two files for your respective operating system.
 
 </TabItem>
 
-<TabItem value="linux" label="🐧Ubuntu">
+<TabItem value="linux" label="🐧Ubuntu (Home PC)">
   <details>
     <summary>
     x86_64 Ubuntu Executables
@@ -470,7 +445,7 @@ We will be downloading two files for your respective operating system.
 
   The Linux system has a hard file descriptor limit of 100k. If this is exceeded, an error will be thrown. For reference, Substrate by default has a 10k hard file descriptor limit.
 
-  The limit can generally be found on the path /proc/sys/fs/file-max. It is recommended to change the limit to 100k if it is not already. Here is an example [tutorial.](https://www.tutorialspoint.com/increase-number-of-maximum-open-files-in-linux)
+  The limit can generally be found on the path /proc/sys/fs/file-max. It is recommended to change the limit to 100k if it is not already in place. Here is a [tutorial.](https://www.tutorialspoint.com/increase-number-of-maximum-open-files-in-linux)
 
 :::
 
@@ -483,11 +458,11 @@ We will be downloading two files for your respective operating system.
   Make sure to install `libgomp1` library with `sudo apt-get install libgomp1`.
 
   ---
-  1. Open your favorite terminal, and change to the Downloads directory using `cd Downloads`
-  2. Make the farmer & node executable
+  1. The executables are downloading to `~/Downloads` directory by default.
+  2. Make the binaries executable
   - `chmod +x subspace-farmer-ubuntu-x86_64-skylake-gemini-3g-2023-nov-07`
   - `chmod +x subspace-node-ubuntu-x86_64-skylake-gemini-3g-2023-nov-07`
-  3. We will then start the node using the following command
+  3. We will then start the node using the following command:
 
   ```bash
     # Replace `INSERT_YOUR_ID` with a nickname you choose
@@ -551,264 +526,278 @@ We will be downloading two files for your respective operating system.
 
 </TabItem>
 
-<TabItem value="systemd_service" label="⚙ Service (Linux)">
+<TabItem value="systemd_service" label="⚙ Linux Server">
 
-:::warning Security risks
-Running a node as a root user carries significant risks for the system. 
-It is recommended to create a separate user for this purpose.
+
+
+Adhering to standard Linux conventions, we place executable files in `/usr/local/bin`, create dedicated directories for their data, and run services from a special user.
+
+All further actions are performed under a regular user.
+
+### Creating a user with restricted rights to run the service
+```console
+sudo useradd --no-create-home --shell /bin/false subspace
+```
+
+### Prepairing binaries
+
+Change directory to HOME: ``cd ~``  
+
+Commands below will download the binaries to your current folder, renaming them to more convenient manner:
+
+<details>
+   <summary>
+    x86_64 Ubuntu Executables
+    </summary>
+    <details>
+        <summary>
+        Version 2 - for older processors since ~2009 and some old VMs
+        </summary>
+		Node:
+		<CodeBlock language="shell-session">
+		wget -O subspace-node https://github.com/subspace/subspace/releases/download/gemini-3g-2023-nov-07/subspace-node-ubuntu-x86_64-v2-gemini-3g-2023-nov-07
+		</CodeBlock>
+		Farmer:
+		<CodeBlock language="shell-session">
+		wget -O subspace-farmer https://github.com/subspace/subspace/releases/download/gemini-3g-2023-nov-07/subspace-farmer-ubuntu-x86_64-v2-gemini-3g-2023-nov-07
+		</CodeBlock>
+    </details>
+    <details>
+        <summary>
+        Version skylake - For newer processors since ~2015
+        </summary>
+		Node:
+		<CodeBlock language="shell-session">
+		wget -O subspace-node https://github.com/subspace/subspace/releases/download/gemini-3g-2023-nov-07/subspace-node-ubuntu-x86_64-skylake-gemini-3g-2023-nov-07
+		</CodeBlock>
+		Farmer:
+		<CodeBlock language="shell-session">
+		wget -O subspace-farmer https://github.com/subspace/subspace/releases/download/gemini-3g-2023-nov-07/subspace-farmer-ubuntu-x86_64-skylake-gemini-3g-2023-nov-07
+		</CodeBlock>
+    </details>
+</details>
+
+<details>
+    <summary>
+    Aarch64/64-bit Raspberry Pi Executables
+    </summary>
+		Node:
+		<CodeBlock language="shell-session">
+		wget -O subspace-node https://github.com/subspace/subspace/releases/download/gemini-3g-2023-nov-07/subspace-node-ubuntu-aarch64-gemini-3g-2023-nov-07
+		</CodeBlock>
+		Farmer:
+		<CodeBlock language="shell-session">
+		wget -O subspace-farmer https://github.com/subspace/subspace/releases/download/gemini-3g-2023-nov-07/subspace-farmer-ubuntu-aarch64-gemini-3g-2023-nov-07
+		</CodeBlock>
+</details>
+
+Copy them to `/usr/local/bin` and delete originals:  
+```console
+sudo cp subspace-node subspace-farmer /usr/local/bin
+```
+Make them executable:
+```console
+sudo chmod +x /usr/local/bin/subspace-node /usr/local/bin/subspace-farmer
+```
+*However, you can download binaries directly to the right place if you run these commands from `/usr/local/bin` directory with root privilegies.*
+
+Set ownership to user 'subspace':
+```console
+sudo chown subspace:subspace /usr/local/bin/subspace-node
+sudo chown subspace:subspace /usr/local/bin/subspace-farmer
+```
+
+:::tip You can use the same commands for updating the node and the farmer
 :::
 
-<Tabs groudId="service_user">
-<TabItem value="root" label="🫚 Root" default>
-Create a Directory for Executable Files:
 
-```shell-session
-mkdir -p /root/.local/bin
+### Creating dedicated directories
+This command creates `subspace-node` and `subspace-farmer` directories for node's data and farmer's data respectively with owning by user 'subspace':
+```console
+sudo -u subspace mkdir /var/lib/subspace-node /var/lib/subspace-farmer
 ```
 
-Download the Executable Files, using the appropriate commands:
-
-<details>
-   <summary>
-    x86_64 Ubuntu Executables
-    </summary>
-    <details>
-        <summary>
-        Version 2 - for older processors since ~2009 and some old VMs
-        </summary>
-		Node:
-		<CodeBlock language="shell-session">
-		wget -O /root/.local/bin/subspace-node https://github.com/subspace/subspace/releases/download/gemini-3g-2023-sep-25/subspace-node-ubuntu-x86_64-v2-gemini-3g-2023-sep-25
-		</CodeBlock>
-		Farmer:
-		<CodeBlock language="shell-session">
-		wget -O /root/.local/bin/subspace-farmer https://github.com/subspace/subspace/releases/download/gemini-3g-2023-sep-25/subspace-farmer-ubuntu-x86_64-v2-gemini-3g-2023-sep-25
-		</CodeBlock>
-    </details>
-    <details>
-        <summary>
-        Version skylake - For newer processors since ~2015
-        </summary>
-		Node:
-		<CodeBlock language="shell-session">
-		wget -O /root/.local/bin/subspace-node https://github.com/subspace/subspace/releases/download/gemini-3g-2023-sep-25/subspace-node-ubuntu-x86_64-skylake-gemini-3g-2023-sep-25
-		</CodeBlock>
-		Farmer:
-		<CodeBlock language="shell-session">
-		wget -O /root/.local/bin/subspace-farmer https://github.com/subspace/subspace/releases/download/gemini-3g-2023-sep-25/subspace-farmer-ubuntu-x86_64-skylake-gemini-3g-2023-sep-25
-		</CodeBlock>
-    </details>
-</details>
-
-<details>
-    <summary>
-    Aarch64/64-bit Raspberry Pi Executables
-    </summary>
-		Node:
-		<CodeBlock language="shell-session">
-		wget -O /root/.local/bin/subspace-node https://github.com/subspace/subspace/releases/download/gemini-3g-2023-sep-25/subspace-node-ubuntu-aarch64-gemini-3g-2023-sep-25
-		</CodeBlock>
-		Farmer:
-		<CodeBlock language="shell-session">
-		wget -O /root/.local/bin/subspace-farmer https://github.com/subspace/subspace/releases/download/gemini-3g-2023-sep-25/subspace-farmer-ubuntu-aarch64-gemini-3g-2023-sep-25
-		</CodeBlock>
-</details>
-
-By default, these commands download the executable files to the `/root/.local/bin` directory. 
-You can change the directory by modifying the respective string.
-
-You can use the same commands to update the node.
-
-Make the Files Executable:
-```shell-session
-chmod +x /root/.local/bin/subspace-node
-chmod +x /root/.local/bin/subspace-farmer
+If your plots are intended to reside on external disks, also change the owner of the corresponding directories to user subspace, for example:
+```console
+sudo chown -R subspace:subspace /mnt/farmer-1
+sudo chown -R subspace:subspace /mnt/farmer-2
+sudo chown -R subspace:subspace /mnt/farmer-2
+etc..
 ```
 
-Create a Directory for Node and Farmer Data:
-```shell-session
-mkdir -p /root/.local/share
+If you have an external journaling partition, you do not need to assign a user 'subspace' ownership to it. It is managed by the file system driver and does not require direct user ownership or interaction.
+
+----
+
+### Systemd Service File
+
+
+---------------------------
+---------------------------
+## TEMPLATE VERSION (just to test how it looks)
+
+#### subspace-node.service  
+Copy this to your /etc/systemd/system/subspace-node file:
+```console
+sudo vi /etc/systemd/system/subspace-node
 ```
 
-</TabItem>
+```console
+[Unit]  
+Description=Subspace Node  
+Wants=network.target  
+After=network.target  
 
-<TabItem value="regular_user" label="👤 Regular User">
-Create a New User for Subspace:
+[Service]  
+User=subspace
+Group=subspace  
+ExecStart=/usr/local/bin/subspace-node \  
+    --name My-cool-node1 \  
+    --base-path /var/lib//subspace-node  \  
+    --state-pruning archive-canonical \  
+    --keep-blocks archive-canonical \  
+    --chain gemini-3g \  
+    --validator \  
+    --no-private-ip \  
+    --listen-addr /ip4/0.0.0.0/tcp/30333 \  
+    --dsn-listen-on /ip4/0.0.0.0/udp/30433/quic-v1 \  
+    --dsn-listen-on /ip4/0.0.0.0/tcp/30433
+KillSignal=SIGINT  
+Restart=always  
+RestartSec=10  
+Nice=-5  
+LimitNOFILE=100000  
 
-```shell-session
-sudo useradd -m -p ! -s /sbin/nologin -c "" subspace
+[Install]  
+WantedBy=multi-user.target  
 ```
 
-You can also use an existing user, but having a separate user enhances the security of your server.
-
-Switch to the Newly Created User:
-```
-sudo su subspace -s /bin/bash
-```
-
-Create a Directory for Executable Files:
-
-```shell-session
-mkdir -p ~/.local/bin
+#### subspace-farmer.service  
+Copy this to your /etc/systemd/system/subspace-farmer file:  
+```console
+sudo vi /etc/systemd/system/subspace-farmer
 ```
 
-Download the Executable Files, using the appropriate commands:
+```console
+[Unit]  
+Description=Subspace Farmer  
+Wants=network.target  
+After=network.target  
+Wants=subspace-node.service  
+After=subspace-node.service  
 
-<details>
-   <summary>
-    x86_64 Ubuntu Executables
-    </summary>
-    <details>
-        <summary>
-        Version 2 - for older processors since ~2009 and some old VMs
-        </summary>
-		Node:
-		<CodeBlock language="shell-session">
-		wget -O /root/.local/bin/subspace-node https://github.com/subspace/subspace/releases/download/gemini-3g-2023-sep-25/subspace-node-ubuntu-x86_64-v2-gemini-3g-2023-sep-25
-		</CodeBlock>
-		Farmer:
-		<CodeBlock language="shell-session">
-		wget -O /root/.local/bin/subspace-farmer https://github.com/subspace/subspace/releases/download/gemini-3g-2023-sep-25/subspace-farmer-ubuntu-x86_64-v2-gemini-3g-2023-sep-25
-		</CodeBlock>
-    </details>
-    <details>
-        <summary>
-        Version skylake - For newer processors since ~2015
-        </summary>
-		Node:
-		<CodeBlock language="shell-session">
-		wget -O /root/.local/bin/subspace-node https://github.com/subspace/subspace/releases/download/gemini-3g-2023-sep-25/subspace-node-ubuntu-x86_64-skylake-gemini-3g-2023-sep-25
-		</CodeBlock>
-		Farmer:
-		<CodeBlock language="shell-session">
-		wget -O /root/.local/bin/subspace-farmer https://github.com/subspace/subspace/releases/download/gemini-3g-2023-sep-25/subspace-farmer-ubuntu-x86_64-skylake-gemini-3g-2023-sep-25
-		</CodeBlock>
-    </details>
-</details>
+[Service]  
+User=subspace  
+Group=subspace  
+ExecStart=/usr/local/bin/subspace-farmer  \  
+    farm \  
+    --reward-address INSERT_HERE_YOUR_WALLET_ADDRESS \  
+    --listen-on /ip4/0.0.0.0/udp/30533/quic-v1 \  
+    --listen-on /ip4/0.0.0.0/tcp/30533 \  
+    path=/var/lib/subspace-farmer,size=600G  
+KillSignal=SIGINT  
+Restart=always  
+RestartSec=10  
+Nice=-5  
+LimitNOFILE=100000  
 
-<details>
-    <summary>
-    Aarch64/64-bit Raspberry Pi Executables
-    </summary>
-		Node:
-		<CodeBlock language="shell-session">
-		wget -O /root/.local/bin/subspace-node https://github.com/subspace/subspace/releases/download/gemini-3g-2023-sep-25/subspace-node-ubuntu-aarch64-gemini-3g-2023-sep-25
-		</CodeBlock>
-		Farmer:
-		<CodeBlock language="shell-session">
-		wget -O /root/.local/bin/subspace-farmer https://github.com/subspace/subspace/releases/download/gemini-3g-2023-sep-25/subspace-farmer-ubuntu-aarch64-gemini-3g-2023-sep-25
-		</CodeBlock>
-</details>
-
-By default, these commands download the executable files to the `~/.local/bin` directory. 
-You can change the directory by modifying the respective string.
-
-You can use the same commands to update the node.
-
-Make the Files Executable:
-```shell-session
-chmod +x ~/.local/bin/subspace-node
-chmod +x ~/.local/bin/subspace-farmer
+[Install]  
+WantedBy=multi-user.target  
 ```
 
-Create a Directory for Node and Farmer Data:
-```shell-session
-mkdir -p ~/.local/share
+:::note
+In to this template insert your wallet address; paths to all you plots with their sizes, if you have multi-disk setup; and play with some recommended [parameters](https://docs.subspace.network/docs/protocol/substrate-cli/#optimizing-dsn-syncing)
+:::
+
+#### Service MUST be granted execute permission!
+```console
+sudo chmod +x /etc/systemd/system/subspace*service
+```
+After editing services:
+```console
+sudo systemctl daemon-reload
 ```
 
-Exit from the User:
-```shell-session
-exit
-```
-</TabItem>
-</Tabs>
+-------------------------
+-------------------------
 
----
+
+
+
+
+### GENERATOR VERSION
 
 Generate Contents for the Service Files, replacing the relevant fields. 
 Remember to change the username if setting up the node from a regular user:
 
+:::note NOTICE THE "SANDBOX" BUTTON in the form below.
+It is active when the checkbox color differs from the background color.
+:::  
+
+
 <AdvancedSystemdServiceFileGenerator />
 
-Open the Node Service File and Paste the Corresponding Generated Content:
+#### Creating the Node Service File:
 ```shell-session
-EDITOR=nano sudo -e /etc/systemd/system/subspace-node.service
+sudo vi /etc/systemd/system/subspace-node.service
+```  
+ And paste the corresponding generated content to it.
+
+
+#### Creating the Farmer Service File:
+```shell-session
+sudo vi /etc/systemd/system/subspace-farmer.service
+```  
+ Add your paths for multi-disk setup, and paste the corresponding generated content to it.
+
+
+
+
+
+#### Service MUST be granted execute permission!
+```console
+sudo chmod +x /etc/systemd/system/subspace*service
+```
+After editing services:
+```console
+sudo systemctl daemon-reload
 ```
 
-Open the Farmer Service File and Paste the Corresponding Generated Content:
-```shell-session
-EDITOR=nano sudo -e /etc/systemd/system/subspace-farmer.service
-```
 
-Enable and Start the Node and Farmer:
+### Service Management Commands (replace ꜱᴇʀᴠɪᴄᴇ with subspace-node or subspace-farmer):
+
+Enable and immediately start node and farmer:
 ```shell-session
 sudo systemctl enable --now subspace-{node,farmer}
 ```
-
----
-
-### Useful Commands
-
-Start Node:
+Start ꜱᴇʀᴠɪᴄᴇ: 
 ```shell-session
-sudo systemctl start subspace-node
+sudo systemctl start ꜱᴇʀᴠɪᴄᴇ
 ```
-
-Start Farmer:
+Stop ꜱᴇʀᴠɪᴄᴇ:
 ```shell-session
-sudo systemctl start subspace-farmer
+sudo systemctl stop ꜱᴇʀᴠɪᴄᴇ
 ```
-
-Stop Node:
+Enable 𝕤𝕖𝕣𝕧𝕚𝕔𝕖 (for automatic startup on system boot):
 ```shell-session
-sudo systemctl stop subspace-node
+sudo systemctl enable 𝕤𝕖𝕣𝕧𝕚𝕔𝕖
 ```
-
-Stop Farmer:
+Disable 𝕤𝕖𝕣𝕧𝕚𝕔𝕖 (to prevent automatic startup on system boot):
 ```shell-session
-sudo systemctl stop subspace-farmer
+sudo systemctl disable 𝕤𝕖𝕣𝕧𝕚𝕔𝕖
 ```
-
-Enable Node (for automatic startup on system boot):
+Check 𝕤𝕖𝕣𝕧𝕚𝕔𝕖 Status:
 ```shell-session
-sudo systemctl enable subspace-node
+sudo systemctl status 𝕤𝕖𝕣𝕧𝕚𝕔𝕖
 ```
-
-Enable Farmer (for automatic startup on system boot):
-```shell-session
-sudo systemctl enable subspace-farmer
-```
-
-Disable Node (to prevent automatic startup on system boot):
-```shell-session
-sudo systemctl disable subspace-node
-```
-
-Disable Node (to prevent automatic startup on system boot):
-```shell-session
-sudo systemctl disable subspace-farmer
-```
-
-Check Node Service Status:
-```shell-session
-sudo systemctl status subspace-node
-```
-
-Check Farmer Service Status:
-```shell-session
-sudo systemctl status subspace-farmer
-```
-
 View Node Logs:
 ```shell-session
 sudo journalctl -f -o cat -u subspace-node
 ```
-
 View Farmer Logs:
 ```shell-session
 sudo journalctl -f -o cat -u subspace-farmer
 ```
-
 Count Farmer Rewards Received in the Last Hour:
 ```shell-session
 sudo journalctl -o cat -u subspace-farmer --since="1 hour ago" | grep -i "Successfully signed reward hash" | wc -l
@@ -822,14 +811,8 @@ To upgrade a node and farmer, first, stop running services:
 ```shell-session
 sudo systemctl stop subspace-{node,farmer}
 ```
+and proceed from the beginning of this manual.
 
-After using the commands from the beginning of the manual, download the executable files of the new release.
-And if you installed under a regular user, you will need to switch to that user beforehand.
-
-Now you can start the services:
-```shell-session
-sudo systemctl start subspace-{node,farmer}
-```
 
 </TabItem>
 </Tabs>
@@ -855,10 +838,6 @@ You can set a custom path for your node & farmer to use if you want to use an ex
 #### Set Node Custom Path.
 To set your node to use a custom path all you will need to do is add the `--base-path` parameter.
 
-```bash
-# start node and store data in `NODE_DATA_PATH` instead of default location
-./NODE_FILE_NAME --base-path NODE_DATA_PATH --chain gemini-3g ...`
-```
 </TabItem>
 </Tabs>
 
@@ -889,9 +868,24 @@ Now follow installation guide.
 
 #### Docker Wipe & Purge
 
-In case of Docker setup run `docker compose down -v` (and manually delete custom directories if you have specified them).
+In case of Docker setup run `docker compose down -v` (and manually delete custom directories for volumes, if you have specified them):
 
-Now follow installation guide.
+##### Some commands that may help to clean it proparly:
+
+``sudo du -aBm / 2>/dev/null | sort -nr | head -n 10``		      # 10 biggest files in System  
+``docker compose down -v``				                                # to wipe plots  
+``docker stop $(docker ps -aq)``			                             # stop all containers  
+``docker rm $(docker ps -aq)``			#delete all containers;  `-q` flag tells Docker to only display the numeric IDs (IDs)  
+``docker rmi -f $(docker images -a -q)``		# delete all images  
+``docker system prune -a --volumes``		# another way to delete all images  
+``docker image prune -a``				# del all unused images  
+``docker system prune``					# Reclaims disk space by removing containers, networks, volumes, and images that are not being used by any running containers.  
+``docker info	``					# check...  
+
+##### To try something more ambitious, you can run an Ubuntu container with:  
+``docker run -it ubuntu bash``			# login to Docker mini-system...  
+``docker exec -it cd8e438ba00a <whatever_you_want_to_run>`` for ex. to get shell: ``docker exec -it cd8e438ba00a /bin/bash``  
+
 
 #### Help
 
@@ -939,25 +933,15 @@ Example:
 ./FARMER_FILE_NAME farm --reward-address WALLET_ADDRESS \
     path=/media/ssd1,size=100GiB \
     path=/media/ssd2,size=10T \
-    path=/media/ssd3,size=10T
+    path=/media/ssd3,size=1024G
 ```
 
 ### Optimizing DSN Syncing
 
 :::warning Parameters to Use with Caution
 While it might be tempting to adjust certain parameters that seem related to DSN Syncing, it's advised to be cautious. Some options will not enhance syncing and are best left at their default values:
-
-```
---out-peers
---in-peers
---in-peers-light
---dsn-target-connections
---dsn-pending-in-connections
---dsn-in-connections
-```
 :::
-
-#### Recommended Parameters
+#### Recommended Parameters to "Play With":
 
 The default parameters are set with the capabilities of common consumer modem/routers in mind. Adjusting certain parameters could enhance DSN sync performance by increasing parallelism. However, if you decide to increase them significantly, ensure that your modem/router is performant enough to handle the increased traffic.
 
@@ -978,17 +962,27 @@ Increasing the values of the farmer parameters could increase the plotting speed
 
 If you're running unsupported Linux distribution or CPU architecture, you may try to build binaries yourself from source.
 
-NOTE: This is primarily targeted at tech-savvy users and not recommended unless you know what you're doing.
+:::note This is primarily targeted at tech-savvy users and not recommended unless you know what you're doing.
+:::
 Please try to find answer to your question online before reaching out to maintainers.
 
-You'll have to have [Rust toolchain](https://rustup.rs/) installed as well as LLVM, Clang and CMake in addition to usual developer tooling (Ubuntu example):
+You'll have to have [Rust toolchain](https://rustup.rs/) installed as well as LLVM, Clang and CMake in addition to usual developer tooling (Ubuntu example).  
+It is highly recommended to consult [Official LLVM guide](https://apt.llvm.org/#llvmsh)
+
+Checking your versions:
+```console
+clang -- version
+```
+(by default you most likely have low clang version which is subject to upgrade. You have to uninstall older versions of clang tools manually).
+
+
 ```text
 sudo apt-get install llvm clang cmake
-```
-
+```  
 :::warning LLVM + Clang 16
 The build with LLVM + Clang 16 ends with `UnknownOpcode(192)` error due to breaking changes concerning WASM in LLVM 16. You can read more about this issue [here](https://github.com/paritytech/substrate/issues/13636). At this point, the solution is to use LLVM + Clang 15 and add the `-Z build-std` flag to the `cargo build` command. 
-:::
+:::  
+
 
 Now clone the source and build snapshot `snapshot-2023-aug-18` (replace occurrences with the snapshot you want to build):
 ```shell-session
